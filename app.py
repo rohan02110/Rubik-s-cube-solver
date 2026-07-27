@@ -1,10 +1,10 @@
 import streamlit as st
+from solver.face_scan import scan_face
 
 st.title("Rubik's Solver")
-img = st.camera_input("Show a cube face")
+img_file = st.camera_input("Show a cube face")
 
-if img is not None:
-    with open("capture.jpg", "wb") as f:
-        f.write(img.getbuffer())
-    st.image(img)
-    st.success("Saved!")
+if img_file:
+    labels, crop = scan_face(img_file)
+    st.image(crop, width=200)
+    st.write(labels)
