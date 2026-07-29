@@ -1,13 +1,15 @@
 import streamlit as st
 import queue
+import numpy as np
+import cv2
 import kociemba
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
-from solver.live_scan import result_queue, make_callback
-from solver.cube_solver import (
-    cluster_faces, build_cubestring, compute_cluster_colors, cluster_names, STRING_ORDER
-)
+from solver.live_scan import result_queue, make_callback, legend_queue, make_legend_callback
+from solver.legend import classify_to_legend
+from solver.cube_solver import build_cubestring, STRING_ORDER
 
 SCAN_ORDER = ["F", "R", "B", "L", "U", "D"]
+COLOR_NAMES = ["White", "Yellow", "Red", "Orange", "Green", "Blue"]
 
 INSTRUCTIONS = {
     "F": "Hold the cube naturally in front of you. Whatever face points at you now is your reference Front (F) — you'll return to this exact pose twice more.",
@@ -26,6 +28,11 @@ def swatch(rgb, size=36):
         unsafe_allow_html=True,
     )
 
+def hsv_to_rgb(hsv):
+    h, s, v = hsv
+    rgb = cv2.cvtColor(np.uint8([[[h, s, v]]]), cv2.COLOR_HSV2RGB)[0][0]
+    return tuple(int(x) for x in rgb)
+
 st.title("Rubik's Solver")
 
 with st.sidebar:
@@ -37,14 +44,43 @@ with st.sidebar:
 - U / D / L / R / F / B = Up / Down / Left / Right / Front / Back
 """)
 
-if "hsv" not in st.session_state:
-    st.session_state.hsv = {}
+if "legend" not in st.session_state:
+    st.session_state.legend = {}
+if "faces" not in st.session_state:
+    st.session_state.faces = {}
 if "stage" not in st.session_state:
-    st.session_state.stage = "scan"
+    st.session_state.stage = "legend"
+
+# ---------------- LEGEND ----------------
+if st.session_state.stage == "legend":
+    remaining = [c for c in COLOR_NAMES if c not in st.session_state.legend]
+
+    if remaining:
+        current = remaining[0]
+        st.subheader(f"Define legend — {current} ({len(st.session_state.legend)+1} of 6)")
+        st.info(f"Hold your {current} sticker centered in the box, then capture.")
+
+        ctx = webrtc_streamer(
+            key="legend_cam",
+            mode=WebRtcMode.SENDRECV,
+            video_frame_callback=make_legend_callback(),
+            media_stream_constraints={"video": True, "audio": False},
+        )
+
+        if ctx.state.playing:
+            if st.button(f"Capture {current}"):
+                try:
+                    st.session_state.legend[current] = legend_queue.get(timeout=1)
+                    st.rerun()
+                except queue.Empty:
+                    st.warning("No frame yet — wait a second and try again.")
+    else:
+        st.session_state.stage = "scan"
+        st.rerun()
 
 # ---------------- SCAN ----------------
-if st.session_state.stage == "scan":
-    remaining = [f for f in SCAN_ORDER if f not in st.session_state.hsv]
+elif st.session_state.stage == "scan":
+    remaining = [f for f in SCAN_ORDER if f not in st.session_state.faces]
 
     if remaining:
         current = remaining[0]
@@ -62,12 +98,14 @@ if st.session_state.stage == "scan":
         if ctx.state.playing:
             if st.button(f"Lock in {current} face"):
                 try:
-                    st.session_state.hsv[current] = result_queue.get(timeout=1)
+                    samples = result_queue.get(timeout=1)
+                    st.session_state.faces[current] = [
+                        classify_to_legend(h, s, v, st.session_state.legend) for h, s, v in samples
+                    ]
                     st.rerun()
                 except queue.Empty:
                     st.warning("No frame yet — wait a second and try again.")
     else:
-        st.session_state.faces = cluster_faces(st.session_state.hsv)
         st.session_state.stage = "verify"
         st.rerun()
 
@@ -75,16 +113,12 @@ if st.session_state.stage == "scan":
 elif st.session_state.stage == "verify":
     st.success("All 6 faces captured — check each sticker and fix any misreads")
 
-    colors = compute_cluster_colors(st.session_state.hsv, st.session_state.faces)
-    names = cluster_names(st.session_state.hsv, st.session_state.faces)
-    options = sorted(colors.keys())
-
     st.markdown("**Legend**")
-    legend_cols = st.columns(len(options))
-    for col, c in zip(legend_cols, options):
+    legend_cols = st.columns(6)
+    for col, name in zip(legend_cols, COLOR_NAMES):
         with col:
-            swatch(colors[c])
-            st.caption(names[c])
+            swatch(hsv_to_rgb(st.session_state.legend[name]))
+            st.caption(name)
 
     for f in STRING_ORDER:
         with st.expander(f"{f} face", expanded=True):
@@ -94,10 +128,9 @@ elif st.session_state.stage == "verify":
                     idx = row * 3 + col_i
                     with cols[col_i]:
                         current_val = st.session_state.faces[f][idx]
-                        swatch(colors[current_val])
+                        swatch(hsv_to_rgb(st.session_state.legend[current_val]))
                         new_val = st.selectbox(
-                            " ", options, index=options.index(current_val),
-                            format_func=lambda c: names[c],
+                            " ", COLOR_NAMES, index=COLOR_NAMES.index(current_val),
                             key=f"edit_{f}_{idx}", label_visibility="collapsed",
                         )
                         st.session_state.faces[f][idx] = new_val
@@ -106,9 +139,10 @@ elif st.session_state.stage == "verify":
     if col1.button("Confirm & Solve"):
         st.session_state.stage = "solve"
         st.rerun()
-    if col2.button("Rescan everything"):
-        st.session_state.hsv = {}
-        st.session_state.stage = "scan"
+    if col2.button("Start over"):
+        st.session_state.legend = {}
+        st.session_state.faces = {}
+        st.session_state.stage = "legend"
         st.rerun()
 
 # ---------------- SOLVE ----------------
@@ -124,7 +158,8 @@ elif st.session_state.stage == "solve":
     if col1.button("Back to Verify"):
         st.session_state.stage = "verify"
         st.rerun()
-    if col2.button("Rescan everything"):
-        st.session_state.hsv = {}
-        st.session_state.stage = "scan"
+    if col2.button("Start over"):
+        st.session_state.legend = {}
+        st.session_state.faces = {}
+        st.session_state.stage = "legend"
         st.rerun()

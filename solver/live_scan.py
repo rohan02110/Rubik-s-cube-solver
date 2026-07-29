@@ -52,3 +52,28 @@ def make_callback():
 
         return av.VideoFrame.from_ndarray(img, format="bgr24")
     return video_frame_callback
+
+legend_queue = queue.Queue(maxsize=1)
+
+def make_legend_callback():
+    def video_frame_callback(frame):
+        img = frame.to_ndarray(format="bgr24")
+        h, w, _ = img.shape
+        box = min(h, w) // 3
+        cy, cx = h // 2, w // 2
+
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        patch = hsv[cy-15:cy+15, cx-15:cx+15].reshape(-1, 3)
+        sample = tuple(patch.mean(axis=0))
+
+        cv2.rectangle(img, (cx-box//2, cy-box//2), (cx+box//2, cy+box//2), (255, 255, 255), 2)
+
+        if not legend_queue.empty():
+            try:
+                legend_queue.get_nowait()
+            except queue.Empty:
+                pass
+        legend_queue.put(sample)
+
+        return av.VideoFrame.from_ndarray(img, format="bgr24")
+    return video_frame_callback
