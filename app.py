@@ -7,6 +7,11 @@ from streamlit_webrtc import webrtc_streamer, WebRtcMode
 from solver.live_scan import result_queue, make_callback, legend_queue, make_legend_callback
 from solver.legend import classify_to_legend
 from solver.cube_solver import build_cubestring, STRING_ORDER
+from streamlit_webrtc import RTCConfiguration
+
+RTC_CONFIGURATION = RTCConfiguration(
+    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+)
 
 SCAN_ORDER = ["F", "R", "B", "L", "U", "D"]
 COLOR_NAMES = ["White", "Yellow", "Red", "Orange", "Green", "Blue"]
@@ -65,6 +70,7 @@ if st.session_state.stage == "legend":
             mode=WebRtcMode.SENDRECV,
             video_frame_callback=make_legend_callback(),
             media_stream_constraints={"video": True, "audio": False},
+            rtc_configuration=RTC_CONFIGURATION,
         )
 
         if ctx.state.playing:
@@ -93,6 +99,7 @@ elif st.session_state.stage == "scan":
             mode=WebRtcMode.SENDRECV,
             video_frame_callback=make_callback(),
             media_stream_constraints={"video": True, "audio": False},
+            rtc_configuration=RTC_CONFIGURATION,
         )
 
         if ctx.state.playing:
