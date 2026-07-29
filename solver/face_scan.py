@@ -1,7 +1,9 @@
+import streamlit as st
 import numpy as np
 import cv2
 from PIL import Image
 
+@st.cache_data
 def sample_face_hsv(img_file):
     rgb = np.array(Image.open(img_file).convert("RGB"))
     h, w, _ = rgb.shape

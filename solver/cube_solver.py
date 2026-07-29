@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.cluster import KMeans
+from collections import defaultdict
 
 STRING_ORDER = ["U", "R", "F", "D", "L", "B"]
 
@@ -17,5 +18,40 @@ def cluster_faces(face_hsv):
     return result
 
 def build_cubestring(faces):
-    color_to_face = {faces[f][4]: f for f in STRING_ORDER}
+    centers = [faces[f][4] for f in STRING_ORDER]
+    if len(set(centers)) != 6:
+        raise ValueError("two faces were detected as the same color — a center sticker was likely misread")
+    color_to_face = dict(zip(centers, STRING_ORDER))
     return "".join(color_to_face[c] for f in STRING_ORDER for c in faces[f])
+
+def compute_cluster_colors(face_hsv, faces):
+    groups = defaultdict(list)
+    for f in STRING_ORDER:
+        for hsv, c in zip(face_hsv[f], faces[f]):
+            groups[c].append(hsv)
+    colors = {}
+    for c, samples in groups.items():
+        h, s, v = np.mean(samples, axis=0)
+        rgb = cv2.cvtColor(np.uint8([[[h, s, v]]]), cv2.COLOR_HSV2RGB)[0][0]
+        colors[c] = tuple(int(x) for x in rgb)
+    return colors
+
+def guess_name(h, s, v):
+    if s < 50:
+        return "White"
+    if h < 10 or h > 170:
+        return "Red"
+    if h < 20:
+        return "Orange"
+    if h < 35:
+        return "Yellow"
+    if h < 85:
+        return "Green"
+    return "Blue"
+
+def cluster_names(face_hsv, faces):
+    groups = defaultdict(list)
+    for f in STRING_ORDER:
+        for hsv, c in zip(face_hsv[f], faces[f]):
+            groups[c].append(hsv)
+    return {c: guess_name(*np.mean(samples, axis=0)) for c, samples in groups.items()}
