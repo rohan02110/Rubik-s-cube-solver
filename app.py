@@ -8,6 +8,7 @@ from solver.live_scan import result_queue, make_callback, legend_queue, make_leg
 from solver.legend import classify_to_legend
 from solver.cube_solver import build_cubestring, STRING_ORDER
 from streamlit_webrtc import RTCConfiguration
+from solver.cube3d import render_cube
 
 RTC_CONFIGURATION = RTCConfiguration(
     {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
@@ -153,14 +154,17 @@ elif st.session_state.stage == "verify":
         st.rerun()
 
 # ---------------- SOLVE ----------------
+# ------------------- SOLVE -------------------
 elif st.session_state.stage == "solve":
     try:
         cubestring = build_cubestring(st.session_state.faces)
         st.code(cubestring)
         st.write(kociemba.solve(cubestring).split())
+        render_cube(st.session_state.faces)
     except Exception as e:
         st.error(f"Scan issue: {e}")
-
+        st.stop()  # <-- ADD THIS LINE to prevent code below from running
+    
     col1, col2 = st.columns(2)
     if col1.button("Back to Verify"):
         st.session_state.stage = "verify"
