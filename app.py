@@ -158,6 +158,7 @@ elif st.session_state.stage == "solve":
     try:
         cubestring = build_cubestring(st.session_state.faces)
         st.code(cubestring)
+        moves = kociemba.solve(cubestring).split()
         st.write(kociemba.solve(cubestring).split())
         render_cube(st.session_state.faces)
     except Exception as e:
