@@ -140,8 +140,9 @@ elif st.session_state.stage == "verify":
             style_rules.append(
                 f".st-key-{key} button {{"
                 f"background-color: rgb({r},{g},{b}) !important;"
-                f"height: 48px; width: 100%; border: 2px solid #333;"
-                f"border-radius: 6px; padding: 0; min-height: 48px;}}"
+                f"height: 44px; width: 44px; border: 2px solid #333;"
+                f"border-radius: 6px; padding: 0; min-height: 44px;"
+                f"margin: 0 auto; display: block;}}"
             )
     st.markdown(f"<style>{''.join(style_rules)}</style>", unsafe_allow_html=True)
 
