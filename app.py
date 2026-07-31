@@ -200,9 +200,8 @@ elif st.session_state.stage == "verify":
 elif st.session_state.stage == "solve":
     try:
         cubestring = build_cubestring(st.session_state.faces)
-        st.code(cubestring)
         moves = kociemba.solve(cubestring).split()
-        st.write(kociemba.solve(cubestring).split())
+        st.success(f"Solution found — {len(moves)} moves")
         render_cube(st.session_state.faces, moves)
     except Exception as e:
         st.error(f"Scan issue: {e}")
