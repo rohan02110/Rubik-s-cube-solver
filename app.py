@@ -155,30 +155,32 @@ elif st.session_state.stage == "verify":
                 st.session_state.faces[f][idx] = COLOR_NAMES[next_i]
                 st.rerun()
 
-    def render_centered_face(f):
-        for row in range(3):
-            cols = st.columns(12)
-            for col_i in range(3):
-                idx = row * 3 + col_i
-                sticker_button(f, idx, cols[3 + col_i])
+    def render_face_grid(f):
+        with st.container(border=True):
+            for row in range(3):
+                cols = st.columns(3)
+                for col_i in range(3):
+                    idx = row * 3 + col_i
+                    sticker_button(f, idx, cols[col_i])
 
     # U face
     st.caption("U")
-    render_centered_face("U")
+    u_cols = st.columns([1, 1, 1])
+    with u_cols[1]:
+        render_face_grid("U")
 
-    # L, F, R, B in one band
+    # L, F, R, B in one row, each with its own border
     st.caption("L · F · R · B")
-    for row in range(3):
-        cols = st.columns(12)
-        for face_i, f in enumerate(["L", "F", "R", "B"]):
-            offset = face_i * 3
-            for col_i in range(3):
-                idx = row * 3 + col_i
-                sticker_button(f, idx, cols[offset + col_i])
+    face_cols = st.columns(4)
+    for col, f in zip(face_cols, ["L", "F", "R", "B"]):
+        with col:
+            render_face_grid(f)
 
     # D face
     st.caption("D")
-    render_centered_face("D")
+    d_cols = st.columns([1, 1, 1])
+    with d_cols[1]:
+        render_face_grid("D")
 
     col1, col2, col3 = st.columns(3)
     if col1.button("Solve"):
