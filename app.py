@@ -119,7 +119,7 @@ elif st.session_state.stage == "scan":
 
 # ---------------- VERIFY ----------------
 elif st.session_state.stage == "verify":
-    st.success("All 6 faces captured — check each sticker and fix any misreads")
+    st.success("All 6 faces captured — tap any sticker to cycle its color")
 
     st.markdown("**Legend**")
     legend_cols = st.columns(6)
@@ -128,26 +128,66 @@ elif st.session_state.stage == "verify":
             swatch(hsv_to_rgb(st.session_state.legend[name]))
             st.caption(name)
 
-    for f in STRING_ORDER:
-        with st.expander(f"{f} face", expanded=True):
-            for row in range(3):
-                cols = st.columns(3)
-                for col_i in range(3):
-                    idx = row * 3 + col_i
-                    with cols[col_i]:
-                        current_val = st.session_state.faces[f][idx]
-                        swatch(hsv_to_rgb(st.session_state.legend[current_val]))
-                        new_val = st.selectbox(
-                            " ", COLOR_NAMES, index=COLOR_NAMES.index(current_val),
-                            key=f"edit_{f}_{idx}", label_visibility="collapsed",
-                        )
-                        st.session_state.faces[f][idx] = new_val
+    st.caption("Tap a sticker to cycle: White → Yellow → Red → Orange → Green → Blue")
 
-    col1, col2 = st.columns(2)
-    if col1.button("Confirm & Solve"):
+    # Build one CSS rule per sticker so its button shows the right color
+    style_rules = []
+    for f in STRING_ORDER:
+        for idx in range(9):
+            key = f"tap_{f}_{idx}"
+            current_val = st.session_state.faces[f][idx]
+            r, g, b = hsv_to_rgb(st.session_state.legend[current_val])
+            style_rules.append(
+                f".st-key-{key} button {{"
+                f"background-color: rgb({r},{g},{b}) !important;"
+                f"height: 48px; width: 100%; border: 2px solid #333;"
+                f"border-radius: 6px; padding: 0; min-height: 48px;}}"
+            )
+    st.markdown(f"<style>{''.join(style_rules)}</style>", unsafe_allow_html=True)
+
+    def sticker_button(f, idx, container):
+        key = f"tap_{f}_{idx}"
+        with container:
+            if st.button(" ", key=key):
+                current_val = st.session_state.faces[f][idx]
+                next_i = (COLOR_NAMES.index(current_val) + 1) % len(COLOR_NAMES)
+                st.session_state.faces[f][idx] = COLOR_NAMES[next_i]
+                st.rerun()
+
+    def render_centered_face(f):
+        for row in range(3):
+            cols = st.columns(12)
+            for col_i in range(3):
+                idx = row * 3 + col_i
+                sticker_button(f, idx, cols[3 + col_i])
+
+    # U face
+    st.caption("U")
+    render_centered_face("U")
+
+    # L, F, R, B in one band
+    st.caption("L · F · R · B")
+    for row in range(3):
+        cols = st.columns(12)
+        for face_i, f in enumerate(["L", "F", "R", "B"]):
+            offset = face_i * 3
+            for col_i in range(3):
+                idx = row * 3 + col_i
+                sticker_button(f, idx, cols[offset + col_i])
+
+    # D face
+    st.caption("D")
+    render_centered_face("D")
+
+    col1, col2, col3 = st.columns(3)
+    if col1.button("Solve"):
         st.session_state.stage = "solve"
         st.rerun()
-    if col2.button("Start over"):
+    if col2.button("Rescan Cube"):
+        st.session_state.faces = {}
+        st.session_state.stage = "scan"
+        st.rerun()
+    if col3.button("Rescan Legend"):
         st.session_state.legend = {}
         st.session_state.faces = {}
         st.session_state.stage = "legend"
@@ -164,11 +204,15 @@ elif st.session_state.stage == "solve":
     except Exception as e:
         st.error(f"Scan issue: {e}")
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     if col1.button("Back to Verify"):
         st.session_state.stage = "verify"
         st.rerun()
-    if col2.button("Start over"):
+    if col2.button("Rescan Cube"):
+        st.session_state.faces = {}
+        st.session_state.stage = "scan"
+        st.rerun()
+    if col3.button("Rescan Legend"):
         st.session_state.legend = {}
         st.session_state.faces = {}
         st.session_state.stage = "legend"
