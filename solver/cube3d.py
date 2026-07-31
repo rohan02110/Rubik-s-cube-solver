@@ -161,7 +161,7 @@ TEMPLATE = """
   const nextBtn = document.getElementById('nextBtn');
 
   function updateLabel() {
-    if (moves.length === 0) {
+    if (moves.length == 0) {
       label.textContent = "Already solved";
     } else {
       label.textContent = moveIndex < moves.length

@@ -160,7 +160,7 @@ elif st.session_state.stage == "solve":
         st.code(cubestring)
         moves = kociemba.solve(cubestring).split()
         st.write(kociemba.solve(cubestring).split())
-        render_cube(st.session_state.faces)
+        render_cube(st.session_state.faces, moves)
     except Exception as e:
         st.error(f"Scan issue: {e}")
 
