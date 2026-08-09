@@ -1,79 +1,101 @@
-import numpy as np
+"""WebRTC video frame callback for live Rubik's cube face scanning."""
+
+from __future__ import annotations
+
+import queue
 import cv2
 import av
-import queue
+import numpy as np
+from solver.color_classifier import classify_hsv
 
-result_queue = queue.Queue(maxsize=1)
+# Queue carries (samples, colors): list of 9 HSV tuples + list of 9 color names.
+result_queue: queue.Queue = queue.Queue(maxsize=1)
 
-def make_callback():
-    def video_frame_callback(frame):
+# BGR colors for in-frame cell overlay rectangles
+_OVERLAY_BGR: dict[str, tuple[int, int, int]] = {
+    "White":  (255, 255, 255),
+    "Yellow": (0,   220, 255),
+    "Red":    (0,   30,  220),
+    "Orange": (0,   140, 255),
+    "Green":  (0,   180, 30),
+    "Blue":   (220, 100, 30),
+}
+
+
+def make_scan_callback():
+    """Return a WebRTC video frame callback with real-time color classification.
+
+    On every frame the callback:
+    1. Samples a small HSV patch at each of the 9 grid-cell centers.
+    2. Classifies each patch with :func:`~solver.color_classifier.classify_hsv`.
+    3. Draws a filled colored square + initial-letter label in each cell.
+    4. Pushes ``(samples, colors)`` into :data:`result_queue`.
+
+    Returns:
+        A ``video_frame_callback`` compatible with ``streamlit_webrtc``.
+    """
+    def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
         img = frame.to_ndarray(format="bgr24")
-        h, w, _ = img.shape
-        size = min(h, w)
-        y0, x0 = (h - size) // 2, (w - size) // 2
+        h_img, w_img, _ = img.shape
+        size = min(h_img, w_img)
+        y0, x0 = (h_img - size) // 2, (w_img - size) // 2
         y1, x1 = y0 + size, x0 + size
         cell = size // 3
+        margin = max(1, min(10, cell // 5))
 
         hsv_full = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        samples = []
-        centers = []
+        samples: list[tuple[float, float, float]] = []
+        colors: list[str] = []
+        centers: list[tuple[int, int]] = []
+
         for row in range(3):
             for col in range(3):
                 cy = y0 + row * cell + cell // 2
                 cx = x0 + col * cell + cell // 2
-                patch = hsv_full[cy-10:cy+10, cx-10:cx+10].reshape(-1, 3)
-                hh, ss, vv = patch.mean(axis=0)
+                patch = hsv_full[
+                    max(0, cy - margin):min(h_img, cy + margin),
+                    max(0, cx - margin):min(w_img, cx + margin),
+                ].reshape(-1, 3)
+                hh, ss, vv = float(patch[:, 0].mean()), float(patch[:, 1].mean()), float(patch[:, 2].mean())
                 samples.append((hh, ss, vv))
+                colors.append(classify_hsv(hh, ss, vv))
                 centers.append((cx, cy))
 
-        # dim everything outside the grid square
-        dimmed = (img * 0.3).astype(np.uint8)
+        # Dim everything outside the scan grid
+        dimmed = (img * 0.35).astype(np.uint8)
         dimmed[y0:y1, x0:x1] = img[y0:y1, x0:x1]
         img = dimmed
 
-        # live color swatches
-        for (cx, cy), (hh, ss, vv) in zip(centers, samples):
-            swatch_bgr = cv2.cvtColor(np.uint8([[[hh, ss, vv]]]), cv2.COLOR_HSV2BGR)[0][0]
-            cv2.rectangle(img, (cx-15, cy-15), (cx+15, cy+15),
-                          tuple(int(c) for c in swatch_bgr), -1)
+        # Draw per-cell colored overlays + letter labels
+        sq = max(14, cell // 4)
+        for (cx, cy), color_name in zip(centers, colors):
+            bgr = _OVERLAY_BGR.get(color_name, (120, 120, 120))
+            cv2.rectangle(img, (cx - sq, cy - sq), (cx + sq, cy + sq), bgr, -1)
+            cv2.rectangle(img, (cx - sq, cy - sq), (cx + sq, cy + sq), (30, 30, 30), 1)
+            label = color_name[0]
+            text_color = (30, 30, 30) if color_name in ("White", "Yellow") else (230, 230, 230)
+            font_scale = max(0.3, sq / 28.0)
+            cv2.putText(
+                img, label,
+                (cx - sq // 3, cy + sq // 3),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                font_scale, text_color, 1, cv2.LINE_AA,
+            )
 
-        # grid lines
+        # Grid lines
         cv2.rectangle(img, (x0, y0), (x1, y1), (255, 255, 255), 2)
         for i in range(1, 3):
-            cv2.line(img, (x0 + i*cell, y0), (x0 + i*cell, y1), (255, 255, 255), 1)
-            cv2.line(img, (x0, y0 + i*cell), (x1, y0 + i*cell), (255, 255, 255), 1)
+            cv2.line(img, (x0 + i * cell, y0), (x0 + i * cell, y1), (200, 200, 200), 1)
+            cv2.line(img, (x0, y0 + i * cell), (x1, y0 + i * cell), (200, 200, 200), 1)
 
+        # Push latest results — drop stale frame if queue is full
         if not result_queue.empty():
             try:
                 result_queue.get_nowait()
             except queue.Empty:
                 pass
-        result_queue.put(samples)
+        result_queue.put((samples, colors))
 
         return av.VideoFrame.from_ndarray(img, format="bgr24")
-    return video_frame_callback
 
-legend_queue = queue.Queue(maxsize=1)
-
-def make_legend_callback():
-    def video_frame_callback(frame):
-        img = frame.to_ndarray(format="bgr24")
-        h, w, _ = img.shape
-        box = min(h, w) // 3
-        cy, cx = h // 2, w // 2
-
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        patch = hsv[cy-15:cy+15, cx-15:cx+15].reshape(-1, 3)
-        sample = tuple(patch.mean(axis=0))
-
-        cv2.rectangle(img, (cx-box//2, cy-box//2), (cx+box//2, cy+box//2), (255, 255, 255), 2)
-
-        if not legend_queue.empty():
-            try:
-                legend_queue.get_nowait()
-            except queue.Empty:
-                pass
-        legend_queue.put(sample)
-
-        return av.VideoFrame.from_ndarray(img, format="bgr24")
     return video_frame_callback
