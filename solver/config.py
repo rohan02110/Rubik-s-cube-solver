@@ -1,12 +1,5 @@
 """Central configuration and constants for the Rubik's Cube Solver application."""
 
-from streamlit_webrtc import RTCConfiguration
-
-# WebRTC STUN Server Configuration
-RTC_CONFIGURATION = RTCConfiguration(
-    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-)
-
 # Standard rotation order for capturing cube faces
 SCAN_ORDER = ["F", "R", "B", "L", "U", "D"]
 
@@ -34,3 +27,4 @@ INSTRUCTIONS = {
         "bottom face points at the camera."
     ),
 }
+

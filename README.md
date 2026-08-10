@@ -1,19 +1,18 @@
 # Rubik's Cube Solver 🧩
 
-An interactive, web-based Rubik's Cube Solver built with **Streamlit**, **OpenCV**, **`streamlit-webrtc`**, **Three.js**, and the **Kociemba Two-Phase Algorithm**.
+An interactive, web-based Rubik's Cube Solver built with a modern **Flask (Python) Backend**, a **Node.js/Express Frontend**, **Three.js**, **OpenCV**, and the **Kociemba Two-Phase Algorithm**.
 
-This application captures your physical Rubik's Cube faces via live camera stream, accurately identifies custom sticker colors using user-calibrated legend anchors in a cylindrical HSV feature space, allows visual verification/editing, and provides an interactive 3D step-by-step solution player.
+This application captures your physical Rubik's Cube faces via live camera stream, accurately identifies custom sticker colors in a cylindrical HSV feature space, allows visual verification/editing, and provides an interactive 3D step-by-step solution player.
 
 ---
 
 ## 🛠️ Tech Stack & Architecture
 
-- **Frontend UI & Application Flow**: [Streamlit](https://streamlit.io/)
-- **Live Video Streaming**: `streamlit-webrtc` (WebRTC camera stream over STUN)
-- **Computer Vision & Color Sampling**: [OpenCV](https://opencv.org/) (`cv2`) & [NumPy](https://numpy.org/)
-- **Color Classification**: Cylindrical HSV vector space matching against calibrated user legend anchors
-- **Solving Engine**: [Kociemba](https://pypi.org/project/kociemba/) Two-Phase Algorithm (Herbert Kociemba)
-- **3D Visualization**: [Three.js](https://threejs.org/) embedded in custom Streamlit WebGL components
+- **Backend API**: Flask (Python) running on port `5000`
+- **Frontend Server & Proxy**: Node.js + Express running on port `3000`
+- **Computer Vision & Color Sampling**: OpenCV (`cv2`) & NumPy
+- **Solving Engine**: Kociemba Two-Phase Algorithm
+- **3D Visualization**: Three.js + OrbitControls
 
 ---
 
@@ -21,24 +20,36 @@ This application captures your physical Rubik's Cube faces via live camera strea
 
 ```
 rubiks-solver/
-├── app.py                     # Main Streamlit web application controller
-├── requirements.txt           # Python package dependencies
-├── README.md                  # Project documentation & usage guide
-├── .gitignore                 # Version control exclusion rules
-├── assets/                    # Media assets (demo videos, screenshots)
-│   ├── Rubik's Cube Solver.mp4
-│   └── capture.jpg
-├── solver/                    # Core Rubik's Solver package
-│   ├── __init__.py            # Public package API exports
-│   ├── config.py              # Application configuration & constants
-│   ├── cube3d.py              # Three.js 3D WebGL cube renderer
-│   ├── cube_solver.py         # Cubestring construction & Kociemba integration
-│   ├── legend.py              # Cylindrical HSV vector classification
-│   └── live_scan.py           # WebRTC live stream frame processing
-└── tests/                     # Test suite
-    ├── __init__.py
-    ├── test_3d.py             # 3D visualizer component test harness
-    └── test_solver.py         # Automated unit tests for solver & legend logic
+├── api/                         # Flask Backend API
+│   ├── app.py                   # Main Flask application entrypoint
+│   ├── requirements.txt         # Backend Python dependencies
+│   └── routes/                  # API endpoints
+│       ├── scan.py              # Camera frame classification endpoint
+│       ├── solve.py             # Kociemba solve endpoint
+│       └── validate.py          # Pre-solve verification endpoint
+├── frontend/                    # Node.js Express Frontend
+│   ├── server.js                # Express static server and API proxy
+│   ├── package.json             # Frontend Node.js dependencies
+│   └── public/                  # SPA client static assets
+│       ├── index.html           # Main SPA HTML structure
+│       ├── css/
+│       │   └── style.css        # Premium dark-mode UI stylesheet
+│       └── js/                  # Frontend modules
+│           ├── camera.js        # MediaDevices camera API wrapper
+│           ├── cube3d.js        # Three.js 3D Interactive cube renderer
+│           ├── main.js          # App state machine and UI event coordination
+│           ├── scanner.js       # Live scan controller and grid polling
+│           └── solver.js        # Solve stage state handler
+├── solver/                      # Core Rubik's Solver logic package (Python)
+│   ├── __init__.py              # Public package API exports
+│   ├── color_classifier.py      # HSV-range color classification
+│   ├── config.py                # Scanner rotation sequence and color lists
+│   └── cube_solver.py           # Cubestring builder logic
+├── tests/                       # Test suite
+│   ├── __init__.py
+│   └── test_solver.py           # Automated unit tests for solver logic
+├── start.ps1                    # One-click startup script (Windows)
+└── README.md                    # Project documentation
 ```
 
 ---
@@ -51,51 +62,42 @@ git clone https://github.com/rohan02110/Rubik-s-cube-solver.git
 cd Rubik-s-cube-solver
 ```
 
-### 2. Create and activate virtual environment
-- **Windows (PowerShell)**:
-  ```powershell
-  python -m venv venv
-  .\venv\Scripts\Activate.ps1
-  ```
-- **macOS / Linux**:
-  ```bash
-  python3 -m venv venv
-  source venv/bin/activate
-  ```
+### 2. Startup using PowerShell (Windows)
+Simply run the startup script in PowerShell:
+```powershell
+./start.ps1
+```
+This script will automatically:
+1. Activate the Python virtual environment (`venv`) and install dependencies in `api/requirements.txt`.
+2. Install frontend dependencies in `frontend/` and run the development server.
+3. Open two terminal instances running both servers.
 
-### 3. Install dependencies
+Once running, navigate to **`http://localhost:3000`** in your browser.
+
+### 3. Manual Startup (Cross-Platform)
+
+#### Run the Flask Backend:
 ```bash
-pip install -r requirements.txt
+# Activate virtual environment
+source venv/bin/activate # or venv\Scripts\activate on Windows
+pip install -r api/requirements.txt
+python api/app.py
 ```
+*Backend runs on `http://127.0.0.1:5000`*
 
-### 4. Launch the application
+#### Run the Node.js Frontend:
 ```bash
-streamlit run app.py
+cd frontend
+npm install
+npm run dev
 ```
-
----
-
-## 🔄 Application Workflow
-
-```mermaid
-flowchart LR
-    A[1. Legend Stage] -->|Capture 6 reference colors| B[2. Scan Stage]
-    B -->|Lock in 6 cube faces| C[3. Verify Stage]
-    C -->|Review & edit stickers| D[4. Solve Stage]
-    D -->|Kociemba Algorithm| E[Interactive 3D Solution]
-```
-
-1. **Legend Stage**: Capture 1 reference sticker sample for each of your cube's 6 colors under your ambient lighting.
-2. **Scan Stage**: Scan all 6 faces (`Front → Right → Back → Left → Up → Down`) using the live camera feed with an overlaid 3×3 grid.
-3. **Verify Stage**: View the scanned 54-sticker net layout. Click any sticker to cycle colors if lighting caused misreadings.
-4. **Solve Stage**: Generates a 54-character cubestring, solves the cube using Kociemba's algorithm, and renders an interactive 3D WebGL cube step-by-step player.
+*Frontend runs on `http://localhost:3000`*
 
 ---
 
 ## 🧪 Running Unit Tests
 
-Run the automated test suite using standard Python `unittest`:
-
+Run the automated test suite:
 ```bash
 python -m unittest discover -s tests -p "test_*.py"
 ```
