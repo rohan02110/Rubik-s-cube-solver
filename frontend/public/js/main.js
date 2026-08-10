@@ -24,12 +24,13 @@ export const state = {
   faces: {}, // Stores locked colors for each face key, e.g. { "F": [...] }
   currentFaceIndex: 0,
   corrections: {}, // Manual user corrections per face: { "F": { 0: "Yellow" } }
-  liveDetected: Array(9).fill("White") // Live frame sample classifications
+  liveDetected: Array(9).fill("White"), // Live frame sample classifications
+  snapshotColors: Array(9).fill("White") // Snapshot of colors copied for verification
 };
 
 // DOM Cache
 let videoEl, canvasEl, overlayCanvasEl, gridContainerEl, lockBtn, resetBtn, scanStageSection, solveStageSection;
-let progressText, progressFill, faceHeader, instructionBox;
+let progressText, progressFill, faceHeader, instructionBox, scanTriggerBtn;
 let rescanSelect, rescanSingleBtn, scanAllBtn, completedList, completedSection;
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -42,6 +43,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   resetBtn = document.getElementById('reset-scan-btn');
   scanStageSection = document.getElementById('scan-stage');
   solveStageSection = document.getElementById('solve-stage');
+  scanTriggerBtn = document.getElementById('scan-trigger-btn');
   
   progressText = document.getElementById('scan-progress-text');
   progressFill = document.getElementById('scan-progress-fill');
@@ -60,6 +62,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   resetBtn.onclick = handleResetScan;
   scanAllBtn.onclick = handleResetScan;
   rescanSingleBtn.onclick = handleRescanSingleFace;
+  scanTriggerBtn.onclick = handleScanTrigger;
 
   // Initialize UI
   updateProgressUI();
@@ -71,6 +74,13 @@ export async function initScanStage() {
   solveStageSection.classList.remove('active');
   scanStageSection.classList.add('active');
   
+  // Disable lock button until user manual triggers scan
+  lockBtn.disabled = true;
+  
+  // Reset snapshot colors to a default blank/white state
+  state.snapshotColors = Array(9).fill("White");
+  renderVerificationGrid(gridContainerEl);
+
   // Update header and instruction text
   const currentFace = SCAN_ORDER[state.currentFaceIndex];
   faceHeader.innerHTML = `Face ${state.currentFaceIndex + 1} / 6 — <strong>${currentFace}</strong>`;
@@ -91,14 +101,25 @@ export async function initScanStage() {
   updateCompletedFacesUI(completedList, completedSection);
 }
 
+function handleScanTrigger() {
+  const currentFace = SCAN_ORDER[state.currentFaceIndex];
+  // Copy live detected colors to snapshot colors
+  state.snapshotColors = [...state.liveDetected];
+  // Clear any previous manual corrections to start fresh with new scan
+  state.corrections[currentFace] = {};
+  
+  renderVerificationGrid(gridContainerEl);
+  lockBtn.disabled = false; // Enable lock button now that we have scanned colors
+}
+
 function handleLockFace() {
   const currentFace = SCAN_ORDER[state.currentFaceIndex];
   const corrs = state.corrections[currentFace] || {};
   
-  // Merge live colors with manual corrections
+  // Merge snapshot colors with manual corrections
   const finalColors = [];
   for (let i = 0; i < 9; i++) {
-    finalColors.push(corrs[i] || state.liveDetected[i] || "White");
+    finalColors.push(corrs[i] || state.snapshotColors[i] || "White");
   }
   
   state.faces[currentFace] = finalColors;
@@ -131,6 +152,7 @@ function handleResetScan() {
   state.currentFaceIndex = 0;
   state.corrections = {};
   state.liveDetected = Array(9).fill("White");
+  state.snapshotColors = Array(9).fill("White");
   
   updateProgressUI();
   initScanStage();

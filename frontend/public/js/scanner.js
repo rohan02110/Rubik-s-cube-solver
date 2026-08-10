@@ -43,12 +43,6 @@ export function startScanning(videoEl, canvasEl, overlayCanvasEl, gridContainerE
 
       const result = await response.json();
       state.liveDetected = result.colors;
-      
-      // Re-render the 3x3 verification grid (the HTML tiles below the video)
-      renderVerificationGrid(gridContainerEl);
-      
-      // Enable lock button since camera frame processed successfully
-      document.getElementById('lock-face-btn').disabled = false;
 
     } catch (err) {
       console.warn("Scanning frame error:", err);
@@ -215,7 +209,7 @@ export function renderVerificationGrid(container) {
   const corrs = state.corrections[currentFace] || {};
   
   for (let i = 0; i < 9; i++) {
-    const defaultColor = state.liveDetected[i] || "White";
+    const defaultColor = state.snapshotColors[i] || "White";
     const color = corrs[i] || defaultColor;
 
     const cell = document.createElement('div');
