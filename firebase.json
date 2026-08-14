@@ -1,0 +1,19 @@
+{
+  "hosting": {
+    "public": "frontend/public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "run": {
+          "serviceId": "rubiks-api",
+          "region": "us-central1"
+        }
+      }
+    ]
+  }
+}
