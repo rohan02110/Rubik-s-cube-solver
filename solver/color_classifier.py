@@ -19,21 +19,36 @@ _CENTERS: list[tuple[str, float, float, float]] = [
 ]
 
 
-def classify_hsv(h: float, s: float, v: float) -> str:
+def classify_hsv(h: float, s: float, v: float, legend: dict[str, list[float]] | None = None) -> str:
     """Classify an HSV pixel into one of 6 standard Rubik's cube color names.
 
-    Priority order prevents overlap: White first (catches any low-saturation
-    pixel regardless of hue noise), then Yellow, Red, Orange, Green, Blue.
-    Falls back to nearest-center distance for edge cases.
+    If legend is provided, matches using a weighted nearest-neighbor distance.
+    Otherwise, falls back to the stateless rule-based classifier.
 
     Args:
         h: Hue in [0, 179].
         s: Saturation in [0, 255].
         v: Value (brightness) in [0, 255].
+        legend: Optional custom color map to HSV centers.
 
     Returns:
         One of: "White", "Yellow", "Red", "Orange", "Green", "Blue".
     """
+    if legend:
+        best_name, best_dist = "White", float("inf")
+        for name, center in legend.items():
+            if not isinstance(center, (list, tuple)) or len(center) < 3:
+                continue
+            ch, cs, cv = center[0], center[1], center[2]
+            dh = min(abs(h - ch), 180.0 - abs(h - ch)) / 90.0   # normalized, circular
+            ds = abs(s - cs) / 255.0
+            dv = abs(v - cv) / 255.0
+            dist = dh * 2.0 + ds * 1.5 + dv
+            if dist < best_dist:
+                best_name, best_dist = name, dist
+        if best_dist < float("inf"):
+            return best_name
+
     # 1. White — very low saturation, high brightness (hue is irrelevant)
     if s < 70 and v > 130:
         return "White"

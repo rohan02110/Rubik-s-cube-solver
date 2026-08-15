@@ -25,13 +25,21 @@ export const state = {
   currentFaceIndex: 0,
   corrections: {}, // Manual user corrections per face: { "F": { 0: "Yellow" } }
   liveDetected: Array(9).fill("White"), // Live frame sample classifications
-  snapshotColors: Array(9).fill("White") // Snapshot of colors copied for verification
+  liveHsv: Array(9).fill([0, 0, 0]), // Live frame raw HSV values
+  snapshotColors: Array(9).fill("White"), // Snapshot of colors copied for verification
+  legend: null, // Custom HSV color centers mapping
+  calibrationStep: 0, // Current index of color being calibrated
+  isCalibrated: false // Flag indicating if custom calibration is active
 };
 
 // DOM Cache
 let videoEl, canvasEl, overlayCanvasEl, gridContainerEl, lockBtn, resetBtn, scanStageSection, solveStageSection;
 let progressText, progressFill, faceHeader, instructionBox, scanTriggerBtn;
 let rescanSelect, rescanSingleBtn, scanAllBtn, completedList, completedSection;
+
+// Calibration DOM Cache
+let legendPanel, calibrationGuide, captureLegendBtn, skipLegendBtn, recalibrateLegendBtn;
+let scanningHeaderContainer, scanningActions, calibrationActions;
 
 window.addEventListener('DOMContentLoaded', async () => {
   // DOM Cache init
@@ -57,12 +65,27 @@ window.addEventListener('DOMContentLoaded', async () => {
   completedList = document.getElementById('completed-faces-list');
   completedSection = document.getElementById('completed-faces-section');
 
+  // Calibration DOM Cache init
+  legendPanel = document.getElementById('legend-panel');
+  calibrationGuide = document.getElementById('calibration-guide');
+  captureLegendBtn = document.getElementById('capture-legend-btn');
+  skipLegendBtn = document.getElementById('skip-legend-btn');
+  recalibrateLegendBtn = document.getElementById('recalibrate-legend-btn');
+  scanningHeaderContainer = document.getElementById('scanning-header-container');
+  scanningActions = document.getElementById('scanning-actions');
+  calibrationActions = document.getElementById('calibration-actions');
+
   // Event Handlers Setup
   lockBtn.onclick = handleLockFace;
   resetBtn.onclick = handleResetScan;
   scanAllBtn.onclick = handleResetScan;
   rescanSingleBtn.onclick = handleRescanSingleFace;
   scanTriggerBtn.onclick = handleScanTrigger;
+
+  // Calibration Event Handlers
+  captureLegendBtn.onclick = handleCaptureLegendColor;
+  skipLegendBtn.onclick = handleSkipCalibration;
+  recalibrateLegendBtn.onclick = handleRecalibrateLegend;
 
   // Initialize UI
   updateProgressUI();
@@ -88,6 +111,9 @@ export async function initScanStage() {
   instructionBox.textContent = INSTRUCTIONS[currentFace];
   lockBtn.textContent = `✅ Lock in Face ${currentFace}`;
 
+  // Update Stage Visibility based on calibration state
+  updateStageVisibility();
+
   // Start Camera and Scan Loop
   try {
     await startCamera(videoEl);
@@ -99,6 +125,145 @@ export async function initScanStage() {
   }
   
   updateCompletedFacesUI(completedList, completedSection);
+}
+
+// Calibration UI visibility helper
+function updateStageVisibility() {
+  if (state.isCalibrated) {
+    // Show scanning UI
+    scanningHeaderContainer.style.display = "block";
+    scanningActions.style.display = "block";
+    calibrationActions.style.display = "none";
+    calibrationGuide.style.display = "none";
+    recalibrateLegendBtn.style.display = "inline-block";
+    legendPanel.classList.add("complete");
+  } else {
+    // Show calibration UI
+    scanningHeaderContainer.style.display = "none";
+    scanningActions.style.display = "none";
+    calibrationActions.style.display = "block";
+    calibrationGuide.style.display = "block";
+    recalibrateLegendBtn.style.display = "none";
+    legendPanel.classList.remove("complete");
+    updateCalibrationSwatchesUI();
+  }
+}
+
+// Update the visual state of the swatches
+function updateCalibrationSwatchesUI() {
+  COLOR_NAMES.forEach((color, idx) => {
+    const swatch = document.getElementById(`swatch-${color}`);
+    if (!swatch) return;
+
+    swatch.classList.remove("active");
+    
+    const statusSpan = swatch.querySelector(".swatch-status");
+    const previewDiv = swatch.querySelector(".swatch-color");
+
+    if (state.legend && state.legend[color]) {
+      // Swatch is calibrated
+      swatch.classList.add("complete");
+      statusSpan.textContent = "Ready";
+      // Render preview of HSV color if stored
+      if (swatch.dataset.rgb) {
+        previewDiv.style.backgroundColor = swatch.dataset.rgb;
+      }
+    } else {
+      swatch.classList.remove("complete");
+      statusSpan.textContent = "Pending";
+      // Restore standard CSS var colors
+      previewDiv.style.backgroundColor = `var(--sticker-${color})`;
+    }
+
+    if (idx === state.calibrationStep && !state.isCalibrated) {
+      swatch.classList.add("active");
+      statusSpan.textContent = "Capture";
+      calibrationGuide.innerHTML = `Place the <strong>${color}</strong> center sticker in the center box of the camera, then click "Capture Reference Color".`;
+    }
+  });
+}
+
+function handleCaptureLegendColor() {
+  if (state.isCalibrated) return;
+
+  const currentColor = COLOR_NAMES[state.calibrationStep];
+  
+  // Ensure we have a valid HSV sample
+  if (!state.liveHsv || state.liveHsv.length !== 9) {
+    console.warn("Live HSV frame data not ready yet.");
+    return;
+  }
+
+  // Raw HSV of the center cell (index 4)
+  const centerHsv = state.liveHsv[4];
+  
+  if (!state.legend) {
+    state.legend = {};
+  }
+  state.legend[currentColor] = centerHsv;
+
+  // Sample actual center pixel RGB from canvas for high accuracy visual preview
+  let rgbColor = `var(--sticker-${currentColor})`;
+  try {
+    const ctx = canvasEl.getContext('2d');
+    const w = canvasEl.width;
+    const h = canvasEl.height;
+    if (w && h) {
+      const size = Math.min(w, h);
+      const cx = (w - size) / 2 + size / 2;
+      const cy = (h - size) / 2 + size / 2;
+      // Get 10x10 block around center
+      const imgData = ctx.getImageData(cx - 5, cy - 5, 10, 10);
+      let r = 0, g = 0, b = 0;
+      const count = imgData.data.length / 4;
+      for (let i = 0; i < imgData.data.length; i += 4) {
+        r += imgData.data[i];
+        g += imgData.data[i+1];
+        b += imgData.data[i+2];
+      }
+      r = Math.round(r / count);
+      g = Math.round(g / count);
+      b = Math.round(b / count);
+      rgbColor = `rgb(${r}, ${g}, ${b})`;
+    }
+  } catch (err) {
+    console.warn("Failed to sample preview color:", err);
+  }
+
+  const swatch = document.getElementById(`swatch-${currentColor}`);
+  if (swatch) {
+    swatch.dataset.rgb = rgbColor;
+  }
+
+  // Advance calibration step
+  state.calibrationStep++;
+  if (state.calibrationStep >= COLOR_NAMES.length) {
+    state.isCalibrated = true;
+  }
+
+  updateStageVisibility();
+}
+
+function handleSkipCalibration() {
+  state.legend = null;
+  state.isCalibrated = true;
+  updateStageVisibility();
+}
+
+function handleRecalibrateLegend() {
+  state.legend = null;
+  state.calibrationStep = 0;
+  state.isCalibrated = false;
+  
+  // Clear swatch RGBs
+  COLOR_NAMES.forEach(color => {
+    const swatch = document.getElementById(`swatch-${color}`);
+    if (swatch) {
+      delete swatch.dataset.rgb;
+    }
+  });
+
+  updateStageVisibility();
 }
 
 function handleScanTrigger() {

@@ -53,6 +53,26 @@ class TestColorClassifier(unittest.TestCase):
             result = classify_hsv(h, s, v)
             self.assertIn(result, COLOR_NAMES, msg=f"classify_hsv({h},{s},{v}) = {result!r}")
 
+    def test_custom_legend_classification(self):
+        """If a legend is provided, matching should be done against the legend."""
+        custom_legend = {
+            "White":  [0.0, 10.0, 240.0],
+            "Yellow": [30.0, 200.0, 220.0],
+            "Red":    [5.0, 210.0, 200.0],
+            "Orange": [15.0, 220.0, 220.0],
+            "Green":  [60.0, 190.0, 180.0],
+            "Blue":   [115.0, 200.0, 185.0]
+        }
+
+        # Samples matching specific custom centers
+        self.assertEqual(classify_hsv(14.0, 215.0, 210.0, legend=custom_legend), "Orange")
+        self.assertEqual(classify_hsv(4.0, 205.0, 195.0, legend=custom_legend), "Red")
+        self.assertEqual(classify_hsv(112.0, 195.0, 180.0, legend=custom_legend), "Blue")
+
+        # Test fallback / nearest behavior when legend is invalid or missing colors
+        bad_legend = {"Red": "not a list"}
+        self.assertEqual(classify_hsv(110.0, 200.0, 185.0, legend=bad_legend), "Blue")
+
 
 class TestCubeSolver(unittest.TestCase):
     """Tests for cubestring construction and Kociemba integration."""

@@ -29,6 +29,15 @@ def scan_frame():
     if img is None:
         return jsonify({"error": "Failed to decode image"}), 400
 
+    # Parse custom color legend if provided
+    legend = None
+    if 'legend' in request.form:
+        try:
+            import json
+            legend = json.loads(request.form['legend'])
+        except Exception:
+            pass
+
     h_img, w_img, _ = img.shape
     size = min(h_img, w_img)
     y0, x0 = (h_img - size) // 2, (w_img - size) // 2
@@ -51,9 +60,10 @@ def scan_frame():
             ].reshape(-1, 3)
             hh, ss, vv = float(patch[:, 0].mean()), float(patch[:, 1].mean()), float(patch[:, 2].mean())
             samples.append((hh, ss, vv))
-            colors.append(classify_hsv(hh, ss, vv))
+            colors.append(classify_hsv(hh, ss, vv, legend=legend))
             centers.append((cx, cy))
 
     return jsonify({
-        "colors": colors
+        "colors": colors,
+        "hsv": samples
     }), 200

@@ -494,3 +494,121 @@ p {
   transform: translateY(1px);
 }
 
+/* Legend & Calibration Styles */
+.legend-panel {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.legend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.legend-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.legend-swatches-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 0.75rem;
+}
+
+@media (min-width: 480px) {
+  .legend-swatches-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.legend-swatch {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.legend-swatch:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.legend-swatch.active {
+  border: 2px solid var(--primary-color);
+  background: rgba(59, 130, 246, 0.06);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
+}
+
+.legend-swatch.complete {
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.swatch-color {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.legend-swatch:hover .swatch-color {
+  transform: scale(1.08);
+}
+
+.swatch-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.legend-swatch.active .swatch-name {
+  color: var(--text-main);
+}
+
+.swatch-status {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+.legend-swatch.active .swatch-status {
+  background: var(--primary-color);
+  color: #fff;
+}
+
+.legend-swatch.complete .swatch-status {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+}
+
