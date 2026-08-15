@@ -25,6 +25,10 @@ def create_app():
     def health():
         return jsonify({"status": "healthy"}), 200
 
+    @app.route('/', methods=['GET'])
+    def index():
+        return jsonify({"message": "Rubik's Cube Solver API is running!"}), 200
+
     return app
 
 import os
