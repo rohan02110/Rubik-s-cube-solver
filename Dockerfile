@@ -7,7 +7,13 @@ WORKDIR /app
 COPY api/requirements.txt .
 
 # Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
+    libffi-dev \
+    && pip install --no-cache-dir -r requirements.txt \
+    && apt-get purge -y --auto-remove gcc python3-dev libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy the entire project
 COPY . .
