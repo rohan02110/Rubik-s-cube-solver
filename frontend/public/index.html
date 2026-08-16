@@ -26,51 +26,36 @@
         <h1>Rubik's Cube Solver 🧩</h1>
         <p>A full client-server Rubik's cube scanner and step-by-step solver.</p>
 
-        <!-- Reference Legend / Calibration Panel -->
-        <div id="legend-panel" class="legend-panel">
-          <div class="legend-header">
-            <h3>🎨 Reference Color Legend</h3>
-            <button id="recalibrate-legend-btn" class="btn btn-secondary btn-sm" style="display: none;">Recalibrate</button>
+        <!-- Reference Color Palette Key -->
+        <div class="legend-swatches-grid static-legend">
+          <div class="legend-swatch static-swatch">
+            <div class="swatch-color" style="background-color: var(--sticker-White);"></div>
+            <span class="swatch-name">White</span>
           </div>
-          <div id="calibration-guide" class="alert alert-info">
-            Place the <strong>White</strong> center sticker in the center box of the camera, then click "Capture Reference Color".
+          <div class="legend-swatch static-swatch">
+            <div class="swatch-color" style="background-color: var(--sticker-Yellow);"></div>
+            <span class="swatch-name">Yellow</span>
           </div>
-          <div class="legend-swatches-grid">
-            <div class="legend-swatch active" data-color="White" id="swatch-White">
-              <div class="swatch-color" style="background-color: var(--sticker-White);"></div>
-              <span class="swatch-name">White</span>
-              <span class="swatch-status">Capture</span>
-            </div>
-            <div class="legend-swatch" data-color="Yellow" id="swatch-Yellow">
-              <div class="swatch-color" style="background-color: var(--sticker-Yellow);"></div>
-              <span class="swatch-name">Yellow</span>
-              <span class="swatch-status">Pending</span>
-            </div>
-            <div class="legend-swatch" data-color="Red" id="swatch-Red">
-              <div class="swatch-color" style="background-color: var(--sticker-Red);"></div>
-              <span class="swatch-name">Red</span>
-              <span class="swatch-status">Pending</span>
-            </div>
-            <div class="legend-swatch" data-color="Orange" id="swatch-Orange">
-              <div class="swatch-color" style="background-color: var(--sticker-Orange);"></div>
-              <span class="swatch-name">Orange</span>
-              <span class="swatch-status">Pending</span>
-            </div>
-            <div class="legend-swatch" data-color="Green" id="swatch-Green">
-              <div class="swatch-color" style="background-color: var(--sticker-Green);"></div>
-              <span class="swatch-name">Green</span>
-              <span class="swatch-status">Pending</span>
-            </div>
-            <div class="legend-swatch" data-color="Blue" id="swatch-Blue">
-              <div class="swatch-color" style="background-color: var(--sticker-Blue);"></div>
-              <span class="swatch-name">Blue</span>
-              <span class="swatch-status">Pending</span>
-            </div>
+          <div class="legend-swatch static-swatch">
+            <div class="swatch-color" style="background-color: var(--sticker-Red);"></div>
+            <span class="swatch-name">Red</span>
+          </div>
+          <div class="legend-swatch static-swatch">
+            <div class="swatch-color" style="background-color: var(--sticker-Orange);"></div>
+            <span class="swatch-name">Orange</span>
+          </div>
+          <div class="legend-swatch static-swatch">
+            <div class="swatch-color" style="background-color: var(--sticker-Green);"></div>
+            <span class="swatch-name">Green</span>
+          </div>
+          <div class="legend-swatch static-swatch">
+            <div class="swatch-color" style="background-color: var(--sticker-Blue);"></div>
+            <span class="swatch-name">Blue</span>
           </div>
         </div>
 
-        <!-- Face scanning header and info (shown during face scanning) -->
-        <div id="scanning-header-container" style="display: none;">
+        <!-- Face scanning header and info -->
+        <div id="scanning-header-container">
           <!-- Progress bar -->
           <div class="progress-container">
             <div class="progress-header">
@@ -97,18 +82,8 @@
           <canvas id="capture-canvas" hidden></canvas>
         </div>
 
-        <!-- CALIBRATION ACTIONS (shown during calibration) -->
-        <div id="calibration-actions" class="scan-trigger-container">
-          <button id="capture-legend-btn" class="btn btn-primary btn-scan">
-            📸 Capture Reference Color
-          </button>
-          <button id="skip-legend-btn" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%;">
-            ⏩ Skip / Use Defaults
-          </button>
-        </div>
-
-        <!-- SCANNING ACTIONS (shown during face scanning) -->
-        <div id="scanning-actions" style="display: none;">
+        <!-- SCANNING ACTIONS -->
+        <div id="scanning-actions">
           <div class="scan-trigger-container">
             <button id="scan-trigger-btn" class="btn btn-primary btn-scan">
               📸 Scan Face Colors
@@ -165,7 +140,7 @@
           </div>
         </div>
 
-        <!-- Re-scan section -->
+        <!-- Re-scan and Re-verify section -->
         <div class="re-scan-select-row">
           <select id="rescan-face-select">
             <option value="F">Front (F)</option>
@@ -176,6 +151,7 @@
             <option value="D">Down (D)</option>
           </select>
           <button id="rescan-single-btn" class="btn btn-secondary">Re-scan Selected Face</button>
+          <button id="reverify-single-btn" class="btn btn-secondary">Re-verify Selected Face</button>
         </div>
 
         <div class="divider"></div>
@@ -183,6 +159,30 @@
         <button id="scan-all-btn" class="btn btn-danger" style="width: 100%;">
           🔄 Scan All Again
         </button>
+      </section>
+
+      <!-- STAGE 3: RE-VERIFY FACE -->
+      <section id="reverify-stage" class="panel stage-section">
+        <h1>Re-verify Face <span id="reverify-face-title">Front (F)</span> 🔍</h1>
+        <p>Click any tile below to change its color, then click <strong>Save & Re-solve</strong>.</p>
+
+        <div class="alert alert-info">
+          Click on any tile to cycle its color (White → Yellow → Red → Orange → Green → Blue).
+        </div>
+
+        <div class="verification-title">🔍 Interactive Verification Tiles</div>
+        <div id="reverify-grid" class="grid-3x3">
+          <!-- 9 cells generated dynamically by JavaScript -->
+        </div>
+
+        <div class="btn-group">
+          <button id="save-reverify-btn" class="btn btn-primary">
+            ✅ Save & Re-solve
+          </button>
+          <button id="cancel-reverify-btn" class="btn btn-secondary">
+            ✖️ Cancel
+          </button>
+        </div>
       </section>
 
     </main>

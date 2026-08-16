@@ -420,12 +420,22 @@ p {
 
 .re-scan-select-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
   width: 100%;
   margin-top: 1.5rem;
   border-top: 1px solid var(--border-color);
   padding-top: 1.5rem;
+}
+
+.static-legend {
+  margin-bottom: 1.25rem;
+}
+
+.static-swatch {
+  cursor: default !important;
+  border-style: solid !important;
 }
 
 .re-scan-select-row select {

@@ -32,11 +32,6 @@ export function startScanning(videoEl, canvasEl, overlayCanvasEl, gridContainerE
       const formData = new FormData();
       formData.append('frame', blob, 'frame.jpg');
 
-      // Append custom color legend if calibrated
-      if (state.isCalibrated && state.legend) {
-        formData.append('legend', JSON.stringify(state.legend));
-      }
-
       const response = await fetch('/api/scan-frame', {
         method: 'POST',
         body: formData
