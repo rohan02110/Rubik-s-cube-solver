@@ -14,7 +14,12 @@ from api.routes.solve import solve_bp
 from api.routes.validate import validate_bp
 
 def create_app():
-    app = Flask(__name__)
+    frontend_folder = root_path / 'frontend' / 'public'
+    if frontend_folder.exists():
+        app = Flask(__name__, static_folder=str(frontend_folder), static_url_path='')
+    else:
+        app = Flask(__name__)
+
     CORS(app)  # Enable CORS for all routes
 
     app.register_blueprint(scan_bp, url_prefix='/api')
@@ -27,6 +32,8 @@ def create_app():
 
     @app.route('/', methods=['GET'])
     def index():
+        if frontend_folder.exists() and (frontend_folder / 'index.html').exists():
+            return app.send_static_file('index.html')
         return jsonify({"message": "Rubik's Cube Solver API is running!"}), 200
 
     return app
