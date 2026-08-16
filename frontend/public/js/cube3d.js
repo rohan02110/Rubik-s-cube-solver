@@ -130,8 +130,14 @@ export function renderCube(container, cubeData, moves) {
   }
 
   let animating = false;
+  let isPlaying = false;
+  let playTimeoutId = null;
 
-  function applyMove(move, onDone) {
+  function easeInOutQuad(t) {
+    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+  }
+
+  function applyMove(move, duration = 300, onDone) {
     const letter = move[0];
     const axis = AXIS[letter];
     const layerVal = LAYER[letter];
@@ -143,13 +149,14 @@ export function renderCube(container, cubeData, moves) {
     affected.forEach(c => pivot.attach(c));
 
     animating = true;
-    const duration = 250;
     const start = performance.now();
 
     function step(now) {
-      const t = Math.min((now - start) / duration, 1);
-      pivot.rotation[axis] = angle * t;
-      if (t < 1) {
+      const rawT = Math.min((now - start) / duration, 1);
+      const easedT = easeInOutQuad(rawT);
+      pivot.rotation[axis] = angle * easedT;
+
+      if (rawT < 1) {
         requestAnimationFrame(step);
       } else {
         affected.forEach(c => {
@@ -162,7 +169,7 @@ export function renderCube(container, cubeData, moves) {
         });
         scene.remove(pivot);
         animating = false;
-        onDone && onDone();
+        if (onDone) onDone();
       }
     }
     requestAnimationFrame(step);
@@ -173,37 +180,104 @@ export function renderCube(container, cubeData, moves) {
   const moveLabel = document.getElementById('move-label');
   const prevBtn = document.getElementById('prev-move-btn');
   const nextBtn = document.getElementById('next-move-btn');
+  const playBtn = document.getElementById('play-moves-btn');
+  const resetBtn = document.getElementById('reset-moves-btn');
 
   function updateLabel() {
     if (moves.length === 0) {
-      moveLabel.textContent = "Already solved";
+      if (moveLabel) moveLabel.textContent = "Already solved";
     } else {
-      moveLabel.textContent = moveIndex < moves.length
-        ? `Move ${moveIndex} of ${moves.length} — next: ${moves[moveIndex]}`
-        : `Move ${moveIndex} of ${moves.length} — done!`;
+      if (moveLabel) {
+        moveLabel.textContent = moveIndex < moves.length
+          ? `Move ${moveIndex + 1} of ${moves.length} — Next: ${moves[moveIndex]}`
+          : `Completed (${moves.length}/${moves.length} moves) 🎉`;
+      }
     }
-    prevBtn.disabled = animating || moveIndex === 0;
-    nextBtn.disabled = animating || moveIndex >= moves.length;
+
+    if (prevBtn) prevBtn.disabled = animating || moveIndex === 0;
+    if (nextBtn) nextBtn.disabled = animating || moveIndex >= moves.length;
+    if (resetBtn) resetBtn.disabled = animating || moveIndex === 0;
+
+    if (playBtn) {
+      playBtn.disabled = moves.length === 0 || (moveIndex >= moves.length && !isPlaying);
+      playBtn.textContent = isPlaying ? "⏸ Pause" : "▶ Auto Play";
+      if (isPlaying) {
+        playBtn.classList.remove('btn-primary');
+        playBtn.classList.add('btn-secondary');
+      } else {
+        playBtn.classList.remove('btn-secondary');
+        playBtn.classList.add('btn-primary');
+      }
+    }
   }
 
-  const nextHandler = () => {
+  const stopAutoPlay = () => {
+    isPlaying = false;
+    if (playTimeoutId) {
+      clearTimeout(playTimeoutId);
+      playTimeoutId = null;
+    }
+    updateLabel();
+  };
+
+  const playStep = () => {
+    if (!isPlaying || moveIndex >= moves.length) {
+      stopAutoPlay();
+      return;
+    }
+
+    nextHandler(() => {
+      if (isPlaying && moveIndex < moves.length) {
+        playTimeoutId = setTimeout(playStep, 250);
+      } else {
+        stopAutoPlay();
+      }
+    });
+  };
+
+  const nextHandler = (callback) => {
     if (animating || moveIndex >= moves.length) return;
-    applyMove(moves[moveIndex], () => {
+    applyMove(moves[moveIndex], 300, () => {
       moveIndex++;
       updateLabel();
+      if (typeof callback === 'function') callback();
     });
   };
 
   const prevHandler = () => {
+    if (isPlaying) stopAutoPlay();
     if (animating || moveIndex === 0) return;
-    applyMove(inverseMove(moves[moveIndex - 1]), () => {
+    applyMove(inverseMove(moves[moveIndex - 1]), 300, () => {
       moveIndex--;
       updateLabel();
     });
   };
 
-  prevBtn.onclick = prevHandler;
-  nextBtn.onclick = nextHandler;
+  const playHandler = () => {
+    if (isPlaying) {
+      stopAutoPlay();
+    } else {
+      if (moveIndex >= moves.length) {
+        // Rewind to start if at the end
+        resetHandler();
+      }
+      isPlaying = true;
+      updateLabel();
+      playStep();
+    }
+  };
+
+  const resetHandler = () => {
+    if (isPlaying) stopAutoPlay();
+    if (animating) return;
+    // Fast render recreation to return to 0 index
+    renderCube(container, cubeData, moves);
+  };
+
+  if (prevBtn) prevBtn.onclick = prevHandler;
+  if (nextBtn) nextBtn.onclick = () => { if (isPlaying) stopAutoPlay(); nextHandler(); };
+  if (playBtn) playBtn.onclick = playHandler;
+  if (resetBtn) resetBtn.onclick = resetHandler;
 
   updateLabel();
 
@@ -217,6 +291,7 @@ export function renderCube(container, cubeData, moves) {
     animationFrameId,
     resizeObserver,
     destroy: () => {
+      if (isPlaying) stopAutoPlay();
       cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
     }
