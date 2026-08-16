@@ -6,8 +6,15 @@ from solver.cube_solver import STRING_ORDER
 
 validate_bp = Blueprint('validate', __name__)
 
-@validate_bp.route('/validate', methods=['POST'])
+@validate_bp.route('/validate', methods=['GET', 'POST'])
 def validate_cube():
+    if request.method == 'GET':
+        return jsonify({
+            "status": "active",
+            "endpoint": "/api/validate",
+            "message": "The /api/validate endpoint requires an HTTP POST request containing scanned cube face data."
+        }), 200
+
     data = request.get_json()
     if not data or 'faces' not in data:
         return jsonify({"valid": False, "error": "Missing 'faces' in request body"}), 400

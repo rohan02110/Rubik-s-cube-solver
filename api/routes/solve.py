@@ -5,8 +5,29 @@ from solver.cube_solver import build_cubestring
 
 solve_bp = Blueprint('solve', __name__)
 
-@solve_bp.route('/solve', methods=['POST'])
+@solve_bp.route('/solve', methods=['GET', 'POST'])
 def solve_cube():
+    if request.method == 'GET':
+        return jsonify({
+            "status": "active",
+            "endpoint": "/api/solve",
+            "message": "The /api/solve endpoint requires an HTTP POST request containing 6 scanned cube faces.",
+            "usage": {
+                "method": "POST",
+                "headers": {"Content-Type": "application/json"},
+                "body": {
+                    "faces": {
+                        "F": ["White", "White", "White", "White", "White", "White", "White", "White", "White"],
+                        "R": ["Red", "Red", "Red", "Red", "Red", "Red", "Red", "Red", "Red"],
+                        "B": ["Yellow", "Yellow", "Yellow", "Yellow", "Yellow", "Yellow", "Yellow", "Yellow", "Yellow"],
+                        "L": ["Orange", "Orange", "Orange", "Orange", "Orange", "Orange", "Orange", "Orange", "Orange"],
+                        "U": ["Green", "Green", "Green", "Green", "Green", "Green", "Green", "Green", "Green"],
+                        "D": ["Blue", "Blue", "Blue", "Blue", "Blue", "Blue", "Blue", "Blue", "Blue"]
+                    }
+                }
+            }
+        }), 200
+
     data = request.get_json()
     if not data or 'faces' not in data:
         return jsonify({"error": "Missing 'faces' in request body"}), 400

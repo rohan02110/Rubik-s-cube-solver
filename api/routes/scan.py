@@ -17,8 +17,15 @@ _OVERLAY_BGR = {
     "Blue":   (220, 100, 30),
 }
 
-@scan_bp.route('/scan-frame', methods=['POST'])
+@scan_bp.route('/scan-frame', methods=['GET', 'POST'])
 def scan_frame():
+    if request.method == 'GET':
+        return jsonify({
+            "status": "active",
+            "endpoint": "/api/scan-frame",
+            "message": "The /api/scan-frame endpoint requires an HTTP POST request containing a camera frame image."
+        }), 200
+
     if 'frame' not in request.files:
         return jsonify({"error": "No frame file provided"}), 400
 
