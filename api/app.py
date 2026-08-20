@@ -43,4 +43,9 @@ import os
 if __name__ == '__main__':
     app = create_app()
     port = int(os.environ.get('PORT', 5000))
+    print("\n" + "=" * 65)
+    print(f" 📌 OPEN IN BROWSER: http://localhost:{port}")
+    print(" ⚠️  Note: Use http://localhost, NOT your IP (10.x.x.x) — browsers")
+    print("     block webcam/camera access on non-localhost HTTP addresses.")
+    print("=" * 65 + "\n")
     app.run(host='0.0.0.0', port=port, debug=False)

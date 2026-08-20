@@ -34,7 +34,9 @@ export async function startCamera(videoEl) {
   if (!navigator.mediaDevices.getUserMedia) {
     const isSecure = window.isSecureContext !== false && (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'https:');
     if (!isSecure) {
-      throw new Error(`Camera access requires a Secure Context (HTTPS or http://localhost). You are accessing via http://${location.host}. Please access via http://localhost:5000 or http://127.0.0.1:5000.`);
+      const portStr = location.port ? `:${location.port}` : '';
+      const localUrl = `http://localhost${portStr}${location.pathname}`;
+      throw new Error(`Camera access is blocked on IP addresses (http://${location.host}). Web browsers require a Secure Context.<br><br>👉 <a href="${localUrl}" style="color: #60a5fa; font-weight: 700; text-decoration: underline; font-size: 1.05rem;">Click here to open ${localUrl}</a> to grant camera access!`);
     }
     throw new Error("Camera API (getUserMedia) is not supported by your browser or environment.");
   }
