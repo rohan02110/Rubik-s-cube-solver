@@ -106,7 +106,11 @@ export function captureFrame(videoEl, canvasEl) {
     canvasEl.height = videoEl.videoHeight;
 
     const ctx = canvasEl.getContext('2d');
+    ctx.save();
+    ctx.translate(canvasEl.width, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+    ctx.restore();
 
     canvasEl.toBlob((blob) => {
       if (blob) {
